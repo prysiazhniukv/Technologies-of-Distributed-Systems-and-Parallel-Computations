@@ -1,4 +1,18 @@
-type Task = { start: number; end: number };
+type StartMessage = {
+  type: "start";
+  workerId: number;
+  start: number;
+  end: number;
+};
+
+type ResultMessage = {
+  type: "result";
+  workerId: number;
+  sumSteps: number;
+  count: number;
+  maxSteps: number;
+  maxN: number;
+};
 
 function collatzSteps(n0: number): number {
   let n = n0;
@@ -11,20 +25,27 @@ function collatzSteps(n0: number): number {
   return steps;
 }
 
-self.onmessage = (e: MessageEvent<Task | "stop">) => {
-  const msg = e.data;
-  if (msg === "stop") {
-    (self as DedicatedWorkerGlobalScope).postMessage({ type: "stopped" });
+self.onmessage = (event: MessageEvent<StartMessage>) => {
+  const { start, end, workerId } = event.data;
+
+  if (start > end) {
+    (self as DedicatedWorkerGlobalScope).postMessage({
+      type: "result",
+      workerId,
+      sumSteps: 0,
+      count: 0,
+      maxSteps: 0,
+      maxN: start,
+    } satisfies ResultMessage);
     return;
   }
 
-  const { start, end } = msg;
   let sumSteps = 0;
   let count = 0;
   let maxSteps = 0;
   let maxN = start;
 
-  for (let n = start; n < end; n++) {
+  for (let n = start; n <= end; n++) {
     const s = collatzSteps(n);
     sumSteps += s;
     count++;
@@ -35,14 +56,11 @@ self.onmessage = (e: MessageEvent<Task | "stop">) => {
   }
 
   (self as DedicatedWorkerGlobalScope).postMessage({
-    type: "done",
+    type: "result",
+    workerId,
     sumSteps,
     count,
     maxSteps,
     maxN,
-  });
-
-  (self as DedicatedWorkerGlobalScope).postMessage({ type: "ready" });
+  } satisfies ResultMessage);
 };
-
-(self as DedicatedWorkerGlobalScope).postMessage({ type: "ready" });
